@@ -1,0 +1,1 @@
+-- No-op: schema changes are consolidated in the later migration.

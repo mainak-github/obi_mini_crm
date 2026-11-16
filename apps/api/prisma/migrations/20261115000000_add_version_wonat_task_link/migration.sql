@@ -1,0 +1,1 @@
+-- Consolidated record workflow migration; retained for compatibility with the already-created draft migration directory.

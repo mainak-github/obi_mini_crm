@@ -1,0 +1,1 @@
+-- Migration retained to preserve an existing deployment history; schema constraint is consolidated in 20261116000000_concurrency_and_workflow.

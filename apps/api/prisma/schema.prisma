@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  SALES_MANAGER
+  SALES_REP
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  CONVERTED
+  LOST
+}
+
+enum DealStage {
+  PROSPECTING
+  PROPOSAL
+  NEGOTIATION
+  WON
+  LOST
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+model User {
+  id                 String              @id @default(cuid())
+  name               String
+  email              String              @unique
+  passwordHash       String
+  role               Role                @default(SALES_REP)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  leads              Lead[]              @relation("LeadAssignee")
+  ownedDeals         Deal[]              @relation("DealOwner")
+  assignedTasks      Task[]              @relation("TaskAssignee")
+  changedStages      DealStageHistory[]  @relation("StageChangedBy")
+  notifications      Notification[]
+}
+
+model Lead {
+  id             String       @id @default(cuid())
+  name           String
+  email          String       @unique
+  phone          String?
+  company        String?
+  source         String?
+  status         LeadStatus   @default(NEW)
+  assignedToId   String?
+  assignedTo     User?        @relation("LeadAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  deals          Deal[]
+  tasks          Task[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  version        Int          @default(0)
+
+  @@index([status, createdAt])
+  @@index([assignedToId, status])
+  @@index([name])
+}
+
+model Deal {
+  id                String             @id @default(cuid())
+  name              String
+  value             Decimal            @db.Decimal(14, 2)
+  stage             DealStage          @default(PROSPECTING)
+  expectedCloseDate DateTime?
+  wonAt             DateTime?
+  ownerId           String
+  owner             User               @relation("DealOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  leadId            String?
+  lead              Lead?              @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  tasks             Task[]
+  stageHistory      DealStageHistory[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  version           Int                @default(0)
+
+  @@index([stage, expectedCloseDate])
+  @@index([stage, wonAt])
+  @@index([ownerId, stage])
+}
+
+model DealStageHistory {
+  id           String    @id @default(cuid())
+  dealId       String
+  deal         Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  fromStage    DealStage?
+  toStage      DealStage
+  changedById  String
+  changedBy    User      @relation("StageChangedBy", fields: [changedById], references: [id], onDelete: Restrict)
+  createdAt    DateTime  @default(now())
+
+  @@index([dealId, createdAt])
+}
+
+model Task {
+  id           String       @id @default(cuid())
+  title        String
+  description  String?
+  dueDate      DateTime
+  priority     TaskPriority @default(MEDIUM)
+  status       TaskStatus   @default(PENDING)
+  assigneeId   String
+  assignee     User         @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: Restrict)
+  leadId       String?
+  lead         Lead?        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  dealId       String?
+  deal         Deal?        @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  version      Int          @default(0)
+
+  @@index([assigneeId, status, dueDate])
+  @@index([dueDate, status])
+}
+
+model Notification {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String
+  title       String
+  message     String
+  entityType  String
+  entityId    String
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId, readAt, createdAt])
+}
